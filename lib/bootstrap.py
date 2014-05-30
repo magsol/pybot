@@ -233,7 +233,6 @@ access_token_secret = %s""" % (botname, botdir, botname, botdir, botname, botdir
     f = open('./%s.py' % botname, "w")
     script = """import tweepy
 import ConfigParser
-import os.path
 import sqlalchemy
 import sqlalchemy.orm
 
@@ -246,7 +245,7 @@ class %s(Bot):
     def __init__(self):
         # Read the configuration file.
         cfg = ConfigParser.SafeConfigParser()
-        cfg.read('%s/settings.cfg')
+        cfg.read('%s/%s/settings.cfg')
 
         # Create an OAuth object and initialize the Tweepy API.
         auth = tweepy.OAuthHandler(
@@ -269,7 +268,8 @@ class %s(Bot):
     def run(self):
         ### Implement this method! ###
         pass
-""" % (botname.capitalize(), os.path.dirname(os.path.abspath(__file__)), botname.capitalize())
+""" % (botname.capitalize(), os.path.dirname(os.path.abspath('.')), 
+        botname, botname.capitalize())
     f.write(script)
     f.close()
     f = open("./models.py", "w")
