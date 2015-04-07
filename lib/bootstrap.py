@@ -20,7 +20,6 @@ import signal
 import tweepy
 import tweepy.error
 
-
 def start(botname):
     module = _bot_exists(botname)
     instance = module.__getattribute__(botname.capitalize())()
@@ -29,7 +28,6 @@ def start(botname):
     # the process is daemonized or set to run indefinitely.
     super(type(instance), instance).run()
     instance.run()
-
 
 def stop(botname):
     """
@@ -50,7 +48,6 @@ def stop(botname):
         err = str(err)
         print err
 
-
 def list():
     bots = 0
     running = 0
@@ -69,7 +66,6 @@ def list():
                 f.close()
             print '[%s] %s%s' % (bots, cfg.get("bot", "name"), pid)
     print '\n%s bot%s found (%s running).' % (bots, 's' if bots != 1 else '', running)
-
 
 def create(botname, consumer_key, consumer_secret, access_token, access_token_secret):
     """
@@ -134,7 +130,6 @@ def _bot_exists(botname):
 
     return module
 
-
 def _consumer_tokens():
     """
     Handles prompting the user with directions for obtaining and inputting
@@ -159,7 +154,6 @@ you want to use as your bot, and enter your tokens below.
         consumer_secret = raw_input("Consumer secret: ")
         check = raw_input("Was that correct? [y/n]: ")
     return [consumer_key, consumer_secret]
-
 
 def _access_tokens(oauth):
     """
@@ -189,7 +183,6 @@ bot's internals are set up...
 """
     return [token.key, token.secret]
 
-
 def _write_bot(botname, botdir, c_key, c_secret, a_token, a_secret):
     """
     Handles creating the bot directory and writing all the components of the bot:
@@ -217,7 +210,7 @@ logfile = %s/%s.log
 dbfile = sqlite:///%s/sqlite3.db
 
 # Comma-separated list of Twitter handles to avoid. This can be left blank.
-blacklist = 
+blacklist =
 
 # The consumer key and secret come from your Twitter app. The access tokens are
 # account-specific and need to be regenerated if you decide to deauthorize and
@@ -268,7 +261,7 @@ class %s(Bot):
     def run(self):
         ### Implement this method! ###
         pass
-""" % (botname.capitalize(), os.path.dirname(os.path.abspath('.')), 
+""" % (botname.capitalize(), os.path.dirname(os.path.abspath('.')),
         botname, botname.capitalize())
     f.write(script)
     f.close()

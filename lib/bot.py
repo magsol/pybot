@@ -18,7 +18,6 @@ import logging
 import os
 import signal
 
-
 class Bot(object):
 
     __metaclass__ = ABCMeta
@@ -81,10 +80,9 @@ class Bot(object):
         """
         self.__del__()
 
-
     """
     What follows are some wrapper functions for the Tweepy API object. They
-    are named identically for your convenience. These are by no means 
+    are named identically for your convenience. These are by no means
     exhaustive, but they do cover the more common use-cases. Check out the
     Tweepy documentation for the full API.
     """
@@ -94,7 +92,7 @@ class Bot(object):
         Returns the User object associated with the logged-in account. This
         is a good way to test that authentication was successful.
         """
-        return self.api.me() 
+        return self.api.me()
 
     def home_timeline(self, since_id = None, max_id = None, count = None):
         """
@@ -137,9 +135,9 @@ class Bot(object):
             The longitude of the location this tweet refers to.
 
         place_id : hash
-            A place in the world. These IDs can be retrieved from 
+            A place in the world. These IDs can be retrieved from
             https://dev.twitter.com/docs/api/1/get/geo/reverse_geocode .
         """
         return self.api.update_status(status = status,
-            in_reply_to_status_id = in_reply_to_status_id, 
+            in_reply_to_status_id = in_reply_to_status_id,
             lat = lat, long = long, place_id = place_id)

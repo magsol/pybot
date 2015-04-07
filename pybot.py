@@ -14,7 +14,6 @@ limitations under the License.
 import argparse
 import lib.bootstrap
 
-
 def valid_name(name):
     if not name.isalnum() or name.find(" ") > -1 or not name[0].isalpha() or name.lower() == "lib":
         raise argparse.ArgumentTypeError("""\"%s\" is an invalid bot name. It
