@@ -54,7 +54,7 @@ IMPORTANT: In some cases, SIGTERM actually won't kill the bot (it requires SIGKI
 
 License
 -------
-    Copyright 2014 Shannon Quinn
+    Copyright 2015 Shannon Quinn
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
