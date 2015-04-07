@@ -181,7 +181,7 @@ Once you have authorized the app with your bot account, you will receive a PIN.
     print """Authentication successful! Wait just a minute while the rest of your
 bot's internals are set up...
 """
-    return [token.key, token.secret]
+    return token
 
 def _write_bot(botname, botdir, c_key, c_secret, a_token, a_secret):
     """
