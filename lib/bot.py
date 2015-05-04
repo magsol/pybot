@@ -12,132 +12,176 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from abc import ABCMeta, abstractmethod
-import fcntl
 import logging
-import os
-import signal
+import time
 
-class Bot(object):
+import tweepy
 
-    __metaclass__ = ABCMeta
+import PickleStorage
 
-    def __init__(self, cfg, api):
-        self.cfg = cfg
-        self.name = self.cfg.get('bot', 'name')
-        self.api = api
-        self.lockfile = None
+class PyBot(object):
 
-        # Set up the logger.
-        level = self.cfg.getint('bot', 'debug')
-        handler = logging.NullHandler()
-        if level >= 0:
-            self.logger = logging.getLogger(self.name)
-            self.logger.setLevel(level)
-            self.logger.propagate = False
-            handler = logging.FileHandler(self.cfg.get('bot', 'logfile'))
-            handler.setLevel(level)
-            formatter = logging.Formatter("%(asctime)s %(name)s: %(message)s",
-                "%b %e %H:%M:%S")
-            handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+    def __init__(self):
+        # Basic configuration and state variables for the bot.
+        self.config = {}
+        self.state = {}
 
-        # All set up!
-        self.logger.info("Initialized.")
+        # List of custom callbacks that are user-defined.
+        self.custom_callbacks = []
 
-    def __del__(self):
-        # Clean up.
-        try:
-            os.remove(self.cfg.get('bot', 'pidfile'))
-            self.logger.info("Terminated.")
-        except:
-            # Only reason this fails is if the object was instantiated,
-            # but then the program crashed before run() could be invoked.
-            # In which case, adding an extra error wouldn't help anything.
-            pass
+        # # # # # # # # # # # # # # # # # # # # # # #
+        # Configuration options and their defaults. #
+        # # # # # # # # # # # # # # # # # # # # # # #
 
-    @abstractmethod
+        # Action intervals. Set any of these to 0 to disable them entirely.
+        # Otherwise, the integer indicates the number of seconds between
+        # heartbeats.
+        self.config['timeline_interval'] = 0
+        self.config['mention_interval'] = 0
+        self.config['search_interval'] = 0
+        self.config['follow_interval'] = 0
+        self.config['tweet_interval'] = 0
+
+        # If True, this bot replies ONLY in response to direct mentions.
+        self.config['reply_direct_mention_only'] = False
+
+        # If True, this bot issues direct replies ONLY to accounts it follows.
+        self.config['reply_followers_only'] = False
+
+        # If True, automatically favorites all direct mentions.
+        self.config['autofav_direct_mentions'] = False
+
+        # If the bot detects tweets that contain the listed keywords, those
+        # tweets are automatically favorite'd.
+        self.config['autofav_keywords'] = []
+
+        # If True, this bot automatically follows any account that follows it.
+        self.config['autofollow'] = False
+
+        # Logging level. See https://docs.python.org/2/library/logging.html#logging-levels
+        # for more details.
+        self.config['logging_level'] = logging.DEBUG
+
+        # Adapter for saving/loading this PyBot's state.
+        self.config['storage'] = PickleStorage()
+
+        # Denotes users the bot will never mention.
+        self.config['blacklist'] = []
+
+        # Denotes terms that, if encountered, their tweets are ignored.
+        self.config['exclude'] = []
+
+        #
+        # End configuration options.
+        #
+        # Now we start initializing the bot.
+        #
+
+        # Set up logging.
+        logging.basicConfig(format = '%(asctime)s | %(levelname)s: %(message)s',
+            datefmt = '%m/%d/%Y %I:%M:%S %p',
+            filename = '%s.log' % self.screen_name,
+            level = self.config['logging_level'])
+
+        # Required implementation by all subclasses. Produces an error if it
+        # is not implemented.
+        self.bot_init()
+
+        # Set up OAuth with Twitter and pull down some basic identities.
+        logging.info("Authenticating through Twitter OAuth...")
+        auth = tweepy.OAuthHandler(self.config['api_key'], self.config['api_secret'])
+        auth.set_access_token(self.config['access_key'], self.config['access_secret'])
+        self.api = tweepy.API(auth)
+        self.id = self.api.me().id
+        self.screen_name = self.api.me().screen_name
+        logging.info("Authentication complete.")
+
+        # Try to load any previous state.
+        logging.info("Setting bot state...")
+        self.state = self.config['storage'].read('%s_state.pkl' % self.screen_name)
+        if self.state is None:
+            # No previous state to load? Initialize everything.
+            self.state = {}
+
+            # Timeline configuration options. Set timeline_interval to 0 to
+            # disable checking the bot's timeline.
+            self.state['last_timeline_id'] = 1
+            self.state['last_timeline_time'] = 0
+            self.state['recent_timeline'] = []
+
+            # Mention configuration options. Set mention_interval to 0 to
+            # disable checking the bot's mentions.
+            self.state['last_mention_id'] = 1
+            self.state['last_mention_time'] = 0
+            self.state['recent_mentions'] = []
+
+            # Keyword search configuration options. Set search_interval to 0 to
+            # disable searching for keywords in the public timeline.
+            self.state['last_search_id'] = 1
+            self.state['last_search_time'] = 1
+
+            # Active tweeting configuration. Set tweet_interval to 0 to
+            # disable posting otherwise-unprovoked tweets.
+            self.state['last_tweet_id'] = 1
+            self.state['last_tweet_time'] = 0
+
+            # List of user IDs you follow.
+            self.state['friends'] = self.api.friends_ids(self.id)
+
+            # List of user IDs that follow you.
+            self.state['followers'] = self.api.followers_ids(self.id)
+
+            # List of new followers since the last check (internal) timestamp.
+            self.state['new_followers'] = []
+            self.state['last_follow_time'] = time.time()
+
+        logging.info("Bot state set.")
+
+    def bot_init(self):
+        """
+        Initializes all bot-specific configuration.
+        """
+        raise NotImplementedError("D'oh, you didn't implement the 'bot_init()' method.")
+
     def run(self):
         """
-        This is an abstract method that should be implemented in all bot
-        subclasses. This is the method that is invoked when the bot is run.
-
-        This method sets up the pid lockfile. It should be invoked before
-        the specific bot's run() method is. As long as the bot is started
-        through the pybot.py command interface, this will be called.
+        PyBot's main run method. This activates ALL the things.
         """
-        self.lockfile = open(self.cfg.get('bot', 'pidfile'), "w")
-        fcntl.lockf(self.lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        self.lockfile.write("%s" % (os.getpid()))
-        self.lockfile.flush()
+        pass
 
-        # Also set up the signal handler.
-        signal.signal(signal.SIGTERM, self._sigterm)
-
-    def _sigterm(self, signum, frame):
+    def register_custom_callback(self, action, condition, interval):
         """
-        This is invoked when the process is explicitly told to exit.
-        """
-        self.__del__()
-
-    """
-    What follows are some wrapper functions for the Tweepy API object. They
-    are named identically for your convenience. These are by no means
-    exhaustive, but they do cover the more common use-cases. Check out the
-    Tweepy documentation for the full API.
-    """
-
-    def me(self):
-        """
-        Returns the User object associated with the logged-in account. This
-        is a good way to test that authentication was successful.
-        """
-        return self.api.me()
-
-    def home_timeline(self, since_id = None, max_id = None, count = None):
-        """
-        Returns the timeline for the currently logged-in user.
+        Registers a user-defined callback action. Tests if the given condition
+        is True after the specified interval, and if so, performs the action.
 
         Parameters
         ----------
-        since_id : integer
-            Returns results with an ID greater than (more recent than) the
-            specified ID. This is subject to the limits of how many tweets
-            can be returned at once.
-
-        max_id : integer
-            Returns results with an ID less than (older than) or equal to the
-            specified ID.
-
-        count : integer
-            Specifies the number of tweets to receive. Must be less than or
-            equal to 200. [DEFAULT: 20]
+        action : function
+            Function which specifies the custom action to take.
+        condition : function
+            Function which evaluates to True or False.
+        interval : integer
+            Number of seconds to wait before checking the condition.
         """
-        return self.api.host_timeline(since_id = since_id, max_id = max_id, count = count)
+        callback = {
+            'action': action,
+            'condition': condition,
+            'interval': interval,
+            'last_run': 0,
+        }
+        self.custom_callbacks.append(callback)
 
-    def update_status(self, status, in_reply_to_status_id = None, lat = None, long = None, place_id = None):
-        """
-        Posts an update on the timeline of the currently logged-in user.
+    def on_scheduled_tweet(self):
+        raise NotImplementedError("Need to implement (or pass) 'on_scheduled_tweet'.")
 
-        Parameters
-        ----------
-        status : string
-            Text of the status update, up to 140 characters in length. URL
-            encode as necessary.
+    def on_mention(self):
+        raise NotImplementedError("Need to implement (or pass) 'on_mention'.")
 
-        in_reply_to_status_id : integer
-            The ID of an existing status that the update is in reply to.
+    def on_timeline(self):
+        raise NotImplementedError("Need to implement (or pass) 'on_timeline'.")
 
-        lat : float
-            The latitude of the location this tweet refers to.
+    def on_follow(self):
+        raise NotImplementedError("Need to implement (or pass) 'on_follow'.")
 
-        long : float
-            The longitude of the location this tweet refers to.
-
-        place_id : hash
-            A place in the world. These IDs can be retrieved from
-            https://dev.twitter.com/docs/api/1/get/geo/reverse_geocode .
-        """
-        return self.api.update_status(status = status,
-            in_reply_to_status_id = in_reply_to_status_id,
-            lat = lat, long = long, place_id = place_id)
+    def on_search(self):
+        raise NotImplementedError("Need to implement (or pass) 'on_search'.")
