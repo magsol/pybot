@@ -38,11 +38,13 @@ class PyBot(object):
         # Otherwise, the integer indicates the number of seconds between
         # heartbeats. Alternatively, these can be callables that return
         # some number (integer) of seconds.
-        self.config['timeline_interval'] = 0
-        self.config['mention_interval'] = 0
-        self.config['search_interval'] = 0
-        self.config['follow_interval'] = 0
-        self.config['tweet_interval'] = 0
+        self.actions = ['timeline',  # Something shows up on the home timeline.
+                        'mention',   # This bot gets mentioned.
+                        'search',    # Something appears in a keyword search.
+                        'follow',    # This bot gets a new follower.
+                        'tweet',     # This bot posts a tweet.
+                        ]
+        self.config = {'%s_interval' % action: 0 for action in self.actions}
 
         # If True, this bot replies ONLY in response to direct mentions.
         self.config['reply_direct_mention_only'] = False
@@ -229,45 +231,15 @@ class PyBot(object):
             intervals = []
             current_time = time.time()
 
-            # Check followers.
-            if self.config['follow_interval'] != 0 and \
-                    current_time > self.state['next_follow_time']:
+            # Check all the built-in actions.
+            for action in self.actions:
+                if self.config['%s_interval' % action] != 0 and \
+                        current_time > self.state['next_%s_time' % action]:
+                    # Do something.
 
-                # Update.
-                self.state['last_follow_time'] = current_time
-                self.state['next_follow_time'] = self._increment(current_time, self.config['follow_interval'])
-
-            # Check timeline.
-            if self.config['timeline_interval'] != 0 and \
-                    current_time > self.state['next_timeline_time']:
-
-                # Update.
-                self.state['last_timeline_time'] = current_time
-                self.state['next_timeline_time'] = self._increment(current_time, self.config['timeline_interval'])
-
-            # Check mentions.
-            if self.config['mention_interval'] != 0 and \
-                    current_time > self.state['next_mention_time']:
-
-                # Update.
-                self.state['last_mention_time'] = current_time
-                self.state['next_mention_time'] = self._increment(current_time, self.config['mention_interval'])
-
-            # Check keywords.
-            if self.config['search_interval'] != 0 and \
-                    current_time > self.state['next_search_time']:
-
-                # Update.
-                self.state['last_search_time'] = current_time
-                self.state['next_search_time'] = self._increment(current_time, self.config['search_interval'])
-
-            # Check tweets.
-            if self.config['tweet_interval'] != 0 and \
-                    current_time > self.state['next_tweet_time']:
-
-                # Update.
-                self.state['last_tweet_time'] = current_time
-                self.state['next_tweet_time'] = self._increment(current_time, self.config['tweet_interval'])
+                    # Update state.
+                    self.state['last_%s_time' % action] = current_time
+                    self.state['next_%s_time' % action] = self._increment(current_time, self.config['%s_interval' % action])
 
             # Check custom handlers.
             for callback in self.custom_callbacks:
