@@ -18,7 +18,7 @@ import time
 
 import tweepy
 
-import PickleStorage
+import storage
 
 class PyBot(object):
 
@@ -67,9 +67,9 @@ class PyBot(object):
         self.config['logging_level'] = logging.DEBUG
 
         # Adapter for saving/loading this PyBot's state.
-        self.config['storage'] = PickleStorage()
+        self.config['storage'] = storage.PickleStorage()
 
-        # Denotes users the bot will never mention.
+        # Denotes users the bot will never mention or respond to.
         self.config['blacklist'] = []
 
         # Denotes terms that, if encountered, their tweets are ignored.
@@ -84,34 +84,30 @@ class PyBot(object):
         # Set up a signal handler so a bot can gracefully exit.
         signal.signal(signal.SIGINT, self._handler)
 
+        # Required implementation by all subclasses. Produces an error if it
+        # is not implemented.
+        self.bot_init()
+
+        # Set up OAuth with Twitter and pull down some basic identities.
+        auth = tweepy.OAuthHandler(self.config['api_key'], self.config['api_secret'])
+        auth.set_access_token(self.config['access_key'], self.config['access_secret'])
+        self.api = tweepy.API(auth)
+        self.id = self.api.me().id
+        self.screen_name = self.api.me().screen_name
+
         # Set up logging.
         logging.basicConfig(format = '%(asctime)s | %(levelname)s: %(message)s',
             datefmt = '%m/%d/%Y %I:%M:%S %p',
             filename = '%s.log' % self.screen_name,
             level = self.config['logging_level'])
 
-        # Required implementation by all subclasses. Produces an error if it
-        # is not implemented.
-        self.bot_init()
-
-        # Set up OAuth with Twitter and pull down some basic identities.
-        logging.info("Authenticating through Twitter OAuth...")
-        auth = tweepy.OAuthHandler(self.config['api_key'], self.config['api_secret'])
-        auth.set_access_token(self.config['access_key'], self.config['access_secret'])
-        self.api = tweepy.API(auth)
-        self.id = self.api.me().id
-        self.screen_name = self.api.me().screen_name
-        logging.info("Authentication complete.")
-
         # Try to load any previous state.
+        logging.info("---STARTUP---")
         logging.info("Setting bot state...")
         self.state = self.config['storage'].read('%s_state.pkl' % self.screen_name)
         if self.state is None:
             # No previous state to load? Initialize everything.
             self.state = {}
-
-            # Wait time for the next action.
-            self.state['next_action'] = 0
 
             # Timeline configuration options. Set timeline_interval to 0 to
             # disable checking the bot's timeline.
@@ -252,16 +248,21 @@ class PyBot(object):
                     callback['next_run'] = self._increment(current_time, callback['interval'])
                     intervals.append(callback['next_run'])
 
-            # Save the current state.
-            self._save_state()
+            # Are there any more actions?
+            if len(intervals) == 0:
+                logging.warn("No actions are set! Switching bot OFF.")
+                self.running = False
+            else:
+                # Save the current state.
+                self._save_state()
 
-            # Find the next timestamp.
-            next_action = min(intervals)
-            if current_time < next_action:
-                time.sleep(next_action - current_time)
+                # Find the next timestamp.
+                next_action = min(intervals)
+                if current_time < next_action:
+                    time.sleep(next_action - current_time)
 
         # If the loop breaks, someone hit CTRL+C.
-        logging.info("Shutdown complete!")
+        logging.info("---SHUTDOWN---")
 
     def _increment(self, previous, interval):
         """
