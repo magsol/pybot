@@ -46,6 +46,11 @@ class PyBot(object):
                         ]
         self.config = {'%s_interval' % action: 0 for action in self.actions}
 
+        # List of keywords to search for and take action on when found.
+        # NOTE: This is a completely separate list of keywords from the
+        # `autofav_keywords` list below.
+        self.config['search_keywords'] = []
+
         # If True, this bot replies ONLY in response to direct mentions.
         self.config['reply_direct_mention_only'] = False
 
@@ -180,41 +185,22 @@ class PyBot(object):
     def on_timeline(self):
         raise NotImplementedError("Need to implement (or pass) 'on_timeline'.")
 
-    def on_follow(self, f_id):
-        """
-        Handler when a new follower is / new followers are detected.
-
-        For basic uses, the configuration options provided will suffice. If you
-        also want the bot to do other things when a new follower is acquired, you
-        will need to override this method (though you can avoid replicating the
-        code here by invoking super.on_follow()).
-
-        Parameters
-        ----------
-        f_id : string
-            Twitter user ID of the new follower.
-        """
-        self.state['followers'].append(f_id)
+    def on_follow(self, friend):
+        self.state['followers'].append(friend)
 
         # Do we automatically follow back?
         if self.config['autofollow']:
             try:
-                self.api.create_friendship(f_id, follow = True)
-                self.state['friends'].append(f_id)
-                logging.info("Followed user id '%s'" % f_id)
+                self.api.create_friendship(friend, follow = True)
+                self.state['friends'].append(friend)
+                logging.info("Followed user id '%s'" % friend)
             except tweepy.TweepyError as e:
-                logging.error("Error following user '%s': %s, %s" % (f_id, e.message[0]['code'], e.message[0]['message']))
+                logging.error("Error following user '%s': %s, %s" % (friend, e.message[0]['code'], e.message[0]['message']))
 
     def on_search(self):
         raise NotImplementedError("Need to implement (or pass) 'on_search'.")
 
     def bot_init(self):
-        """
-        Custom initialization. Specify any configuration options you want to
-        override, as in particular your OAuth credentials.
-
-        ** Use the provided scripts to generate a template for you to fill in. **
-        """
         raise NotImplementedError("D'oh, you didn't implement the 'bot_init()' method.")
 
     def run(self):
