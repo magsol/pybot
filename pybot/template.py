@@ -17,6 +17,10 @@ from pybot import PyBot
 class PyBotTemplate(PyBot):
 
     def bot_init(self):
+        """
+        Custom initialization. Specify any configuration options you want to
+        override, as in particular your OAuth credentials.
+        """
 
         #############################
         #                           #
@@ -72,16 +76,98 @@ class PyBotTemplate(PyBot):
         # (yes this is something you could also do with `tweet_interval`)
 
     def on_tweet(self):
+        """
+        Handler for posting a tweet to the bot's public timeline.
+
+        Use the `self.update_status` method to post a tweet.
+
+        Set `self.config['tweet_interval']` to something other than 0 to set
+        the interval in which this method is called (or keep at 0 to disable).
+        """
         pass
 
-    def on_mention(self):
+    def on_mention(self, tweet, prefix):
+        """
+        Handler for responding to mentions at the bot.
+
+        When calling `self.update_status`, make sure you set the `reply_to`
+        parameter to point to the tweet object, or Twitter will not recognize
+        this tweet as a reply to the original.
+
+        Parameters
+        ----------
+        tweet : tweepy.Status object
+            Contains the status update pertaining to the mention. The fields in
+            this object mimic Twitter's Tweet object:
+            https://dev.twitter.com/overview/api/tweets
+        prefix : string
+            String containing all the mentions from the original tweet, excluding
+            your bot's screen name, any users in the blacklist, and any users
+            you do not follow IF self.config['reply_followers_only'] is True.
+        """
         pass
 
-    def on_timeline(self):
+    def on_timeline(self, tweet, prefix):
+        """
+        Handler for responding to tweets that appear in the bot's timeline.
+
+        When calling `self.update_status`, make sure you set the `reply_to`
+        parameter to point to the tweet object, or Twitter will not recognize
+        this tweet as a reply to the original.
+
+        Parameters
+        ----------
+        tweet : tweepy.Status object
+            Contains the status update pertaining to the mention. The fields in
+            this object mimic Twitter's Tweet object:
+            https://dev.twitter.com/overview/api/tweets
+        prefix : string
+            String containing all the mentions from the original tweet, excluding
+            your bot's screen name, any users in the blacklist, and any users
+            you do not follow IF self.config['reply_followers_only'] is True.
+        """
         pass
 
-    def on_search(self):
+    def on_search(self, tweet, prefix, keyword):
+        """
+        Handler for responding to public tweets that contain certain keywords,
+        as specified in self.config['search_keywords'].
+
+        When calling `self.update_status`, make sure you set the `reply_to`
+        parameter to point to the tweet object, or Twitter will not recognize
+        this tweet as a reply to the original.
+
+        Parameters
+        ----------
+        tweet : tweepy.Status object
+            Contains the status update pertaining to the mention. The fields in
+            this object mimic Twitter's Tweet object:
+            https://dev.twitter.com/overview/api/tweets
+        prefix : string
+            String containing all the mentions from the original tweet, excluding
+            your bot's screen name, any users in the blacklist, and any users
+            you do not follow IF self.config['reply_followers_only'] is True.
+        keyword : string
+            Keyword that appeared in the original tweet, matching one of specified
+            keywords in the `self.config['search_keywords']` list.
+        """
         pass
+
+    def on_follow(self, friend):
+        """
+        Handler when a new follower is / new followers are detected.
+
+        For basic uses, the configuration options provided will suffice. If you
+        also want the bot to do other things when a new follower is acquired, you
+        will need to override this method (though you can avoid replicating the
+        code that processes auto-follows by keeping super.on_follow()).
+
+        Parameters
+        ----------
+        friend : string
+            Twitter user ID of the new follower.
+        """
+        super(PyBotTemplate, self).on_follow(friend)
 
 if __name__ == "__main__":
     bot = PyBotTemplate()  # In this case, a basic Echo bot.
