@@ -150,32 +150,29 @@ class PyBot(object):
 
         logging.info("Bot state set.")
 
-    def register_custom_callback(self, action, condition, interval):
+    def register_custom_callback(self, action, interval):
         """
-        Registers a user-defined callback action. Tests if the given condition
-        is True after the specified interval, and if so, performs the action.
+        Registers a user-defined callback action. Performs the action after
+        the specified interval.
 
         Parameters
         ----------
         action : function
             Function which specifies the custom action to take.
-        condition : function
-            Function which evaluates to True or False.
         interval : integer or callable
-            Number of seconds to wait before checking the condition, or a
+            Number of seconds to wait before execution, or a
             callable that returns the number of seconds to wait.
         """
         callback = {
             'action': action,
-            'condition': condition,
             'interval': interval,
             'last_run': 0,
             'next_run': 0,
         }
         self.custom_callbacks.append(callback)
 
-    def on_scheduled_tweet(self):
-        raise NotImplementedError("Need to implement (or pass) 'on_scheduled_tweet'.")
+    def on_tweet(self):
+        raise NotImplementedError("Need to implement (or pass) 'on_tweet'.")
 
     def on_mention(self):
         raise NotImplementedError("Need to implement (or pass) 'on_mention'.")
@@ -241,7 +238,7 @@ class PyBot(object):
 
             # Check custom handlers.
             for callback in self.custom_callbacks:
-                if callback['condition']() and current_time > callback['next_run']:
+                if current_time > callback['next_run']:
                     # Invoke the action!
                     callback['action']()
 
