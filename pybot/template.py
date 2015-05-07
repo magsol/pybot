@@ -66,15 +66,12 @@ class PyBotTemplate(PyBot):
         # it to post the number of replies it's received so far every 24 hours,
         # you could register a function like this.
 
-        # self.register_custom_callback(self.count_replies, True, 24 * 60 * 60)
+        # self.register_custom_callback(self.count_replies, 24 * 60 * 60)
 
-        # count_replies() gives the current count of replies. `True` guarantees
-        # the function runs every 24 hours, but you could potentially have a
-        # more convoluted condition.
-
+        # count_replies() gives the current count of replies.
         # (yes this is something you could also do with `tweet_interval`)
 
-    def on_scheduled_tweet(self):
+    def on_tweet(self):
         pass
 
     def on_mention(self):
