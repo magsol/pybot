@@ -104,10 +104,9 @@ class PyBot(object):
         # Try to load any previous state.
         logging.info("---STARTUP---")
         logging.info("Setting bot state...")
-        self.state = self.config['storage'].read('%s_state.pkl' % self.screen_name)
-        if self.state is None:
+        s = self.config['storage'].read('%s_state.pkl' % self.screen_name)
+        if s is None:
             # No previous state to load? Initialize everything.
-            self.state = {}
 
             # Timeline configuration options. Set timeline_interval to 0 to
             # disable checking the bot's timeline.
@@ -145,6 +144,9 @@ class PyBot(object):
             self.state['new_followers'] = []
             self.state['last_follow_time'] = time.time()
             self.state['next_follow_time'] = 0
+        else:
+            # Use loaded state.
+            self.state = s
 
         logging.info("Bot state set.")
 
