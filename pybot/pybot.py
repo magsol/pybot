@@ -155,6 +155,10 @@ class PyBot(object):
 
         logging.info("Bot state set.")
 
+    # # # # # # # # # # # # # # # # # # # # # # #
+    #       Available should the user wish.     #
+    # # # # # # # # # # # # # # # # # # # # # # #
+
     def register_custom_callback(self, action, interval):
         """
         Registers a user-defined callback action. Performs the action after
@@ -176,6 +180,10 @@ class PyBot(object):
         }
         self.custom_callbacks.append(callback)
 
+    # # # # # # # # # # # # # # # # # # # # # # #
+    #      Methods that MUST be implemented.    #
+    # # # # # # # # # # # # # # # # # # # # # # #
+
     def on_tweet(self):
         raise NotImplementedError("Need to implement (or pass) 'on_tweet'.")
 
@@ -190,18 +198,17 @@ class PyBot(object):
 
         # Do we automatically follow back?
         if self.config['autofollow']:
-            try:
-                self.api.create_friendship(friend, follow = True)
-                self.state['friends'].append(friend)
-                logging.info("Followed user id '%s'" % friend)
-            except tweepy.TweepyError as e:
-                logging.error("Error following user '%s': %s, %s" % (friend, e.message[0]['code'], e.message[0]['message']))
+            self.create_friendship(friend)
 
     def on_search(self):
         raise NotImplementedError("Need to implement (or pass) 'on_search'.")
 
     def bot_init(self):
         raise NotImplementedError("D'oh, you didn't implement the 'bot_init()' method.")
+
+    # # # # # # # # # # # # # # # # # # # # # # #
+    #        Call this to start your bot.       #
+    # # # # # # # # # # # # # # # # # # # # # # #
 
     def run(self):
         """
@@ -248,6 +255,135 @@ class PyBot(object):
 
         # If the loop breaks, someone hit CTRL+C.
         logging.info("---SHUTDOWN---")
+
+    # # # # # # # # # # # # # # # # # # # # # # #
+    #   Twitter DSL methods. Use these often.   #
+    # # # # # # # # # # # # # # # # # # # # # # #
+
+    def update_status(self, status, reply_to = None, lat = None, lon = None, media = None):
+        """
+        Basic DSL method for posting a status update to Twitter.
+
+        Parameters
+        ----------
+        status : string
+            Text of the update. Truncated to 140 characters, so make sure
+            it's the right length.
+        reply_to : tweepy.Status or None
+            Implements the threaded tweets on Twitter, marking this as a reply.
+        lat, lon : float or None
+            Latitude and longitude of the tweet location.
+        media : string or None
+            Filesystem path to an image that will be uploaded.
+
+        Returns
+        -------
+        True on success, False on failure.
+        """
+        kwargs = {}
+        args = [status]
+
+        try:
+            logging.info("Tweeting: %s" % status)
+            if reply_to is not None:
+                logging.info("--Response to %s" % self._tweet_url(reply_to))
+                kwargs['in_reply_to_status_id'] = reply_to.id
+
+            # Is there media attached to this?
+            tweet = None
+            if media is not None:
+                args.insert(0, media)
+                tweet = self.api.update_with_media(*args, **kwargs)
+            else:
+                tweet = self.api.update_status(*args, **kwargs)
+
+            # Log the URL.
+            logging.info("Tweet posted at %s" % self._tweet_url(tweet))
+            return True
+
+        except tweepy.TweepError as e:
+            logging.error("Unable to post tweet!", e)
+            return False
+
+    def create_favorite(self, tweet):
+        """
+        Basic DSL for favorite-ing a tweet.
+
+        Parameters
+        ----------
+        tweet : tweepy.Status
+            tweepy Status object.
+
+        Returns
+        -------
+        True on success, False on failure.
+        """
+        try:
+            logging.info("Favoriting %s" % self._tweet_url(tweet))
+            self.api.create_favorite(tweet.id)
+            return True
+        except tweepy.TweepError as e:
+            logging.error("Unable to favorite tweet!", e)
+            return False
+
+    def create_friendship(self, friend):
+        """
+        Basic DSL for following a twitter user.
+
+        Parameters
+        ----------
+        friend : integer
+            Twitter ID of the user to follow.
+
+        Returns
+        -------
+        True on success, False on failure.
+        """
+        try:
+            logging.info("Following user %s" % friend)
+            self.api.create_friendship(friend, follow = True)
+            self.state['friends'].append(friend)
+            return True
+        except tweepy.TweepError as e:
+            logging.error("Unable to follow user '%s': %s, %s" % (friend, e.message[0]['code'], e.message[0]['message']))
+            return False
+
+    def search(self, query, lang = None, count = 100, page = 1,
+            since_id = None, geocode = None):
+        """
+        Basic DSL for conducting a keyword search.
+
+        Parameters
+        ----------
+        query : string
+            Keyword to search for.
+        lang : string
+            ISO 639-1 language code, to filter resulting tweets on language.
+        count : integer
+            Results per page (defaults to 100, the maximum).
+        page : integer
+            Page number, defaults to 1 (the first).
+        since_id : integer
+            Returns only statuses with an ID greater than (more recent than) this.
+        geocode : tuple (lat,lon,radius)
+            Specified as a tuple of three values, returns tweets by users in
+            the given radius of the given latitude and longitude.
+
+        Returns
+        -------
+        True on success, False on failure.
+        """
+        pass
+
+    # # # # # # # # # # # # # # # # # # # # # # #
+    #     Helper methods. Leave these alone.    #
+    # # # # # # # # # # # # # # # # # # # # # # #
+
+    def _tweet_url(self, tweet):
+        """
+        Helper method for constructing a URL to a specific tweet.
+        """
+        return "https://twitter.com/%s/status/%s" % (tweet.author.screen_name, str(tweet.id))
 
     def _increment(self, previous, interval):
         """
