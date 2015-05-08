@@ -14,6 +14,7 @@ limitations under the License.
 
 import httplib
 import logging
+import multiprocessing as mp
 import re
 import signal
 import time
@@ -22,7 +23,7 @@ import tweepy
 
 import storage
 
-class PyBot(object):
+class PyBot(tweepy.StreamListener):
 
     def __init__(self):
         # Basic configuration and state variables for the bot.
@@ -47,6 +48,13 @@ class PyBot(object):
                         'tweet',     # This bot posts a tweet.
                         ]
         self.config = {'%s_interval' % action: 0 for action in self.actions}
+
+        # Number of tweets allowed to be buffered in-memory from the streaming
+        # API. Increasing this number gives you a larger sample of tweets, but
+        # it can potentially crash your machine if the number is too high.
+        # If an incoming status would overflow the buffer, the oldest status in
+        # the buffer is discarded.
+        self.config['streaming_buffer_length'] = 100000
 
         # List of keywords to search for and take action on when found.
         # NOTE: This is a completely separate list of keywords from the
@@ -82,8 +90,8 @@ class PyBot(object):
         # Denotes users the bot will never mention or respond to.
         self.config['blacklist'] = []
 
-        # Denotes terms that, if encountered, their tweets are ignored.
-        self.config['exclude'] = []
+        # Languages to filter on when conducting searches.
+        self.config['languages'] = ['en']
 
         #
         # End configuration options.
@@ -104,6 +112,11 @@ class PyBot(object):
         self.api = tweepy.API(auth)
         self.id = self.api.me().id
         self.screen_name = self.api.me().screen_name
+
+        # Set up the streaming API. May or may not need this.
+        self.stream = tweepy.Stream(self.api, self)
+        self.lock = mp.Lock()
+        self.buffer = []
 
         # Set up logging.
         logging.basicConfig(format = '%(asctime)s | %(levelname)s: %(message)s',
@@ -135,6 +148,7 @@ class PyBot(object):
             self.state['last_search_id'] = 1
             self.state['last_search_time'] = 0
             self.state['next_search_time'] = 0
+            self.state['search_hits'] = []
 
             # Active tweeting configuration. Set tweet_interval to 0 to
             # disable posting otherwise-unprovoked tweets.
@@ -199,7 +213,7 @@ class PyBot(object):
     def on_follow(self, friend):
         raise NotImplementedError("Need to implement (or pass) 'on_follow'.")
 
-    def on_search(self, tweet, prefix, keyword):
+    def on_search(self, tweet):
         raise NotImplementedError("Need to implement (or pass) 'on_search'.")
 
     def bot_init(self):
@@ -349,33 +363,6 @@ class PyBot(object):
             logging.error("Unable to follow user '%s': %s, %s" % (friend, e.message[0]['code'], e.message[0]['message']))
             return False
 
-    def search(self, query, lang = None, count = 100, page = 1,
-            since_id = None, geocode = None):
-        """
-        Basic DSL for conducting a keyword search.
-
-        Parameters
-        ----------
-        query : string
-            Keyword to search for.
-        lang : string
-            ISO 639-1 language code, to filter resulting tweets on language.
-        count : integer
-            Results per page (defaults to 100, the maximum).
-        page : integer
-            Page number, defaults to 1 (the first).
-        since_id : integer
-            Returns only statuses with an ID greater than (more recent than) this.
-        geocode : tuple (lat,lon,radius)
-            Specified as a tuple of three values, returns tweets by users in
-            the given radius of the given latitude and longitude.
-
-        Returns
-        -------
-        True on success, False on failure.
-        """
-        pass
-
     # # # # # # # # # # # # # # # # # # # # # # #
     #     Helper methods. Leave these alone.    #
     # # # # # # # # # # # # # # # # # # # # # # #
@@ -469,13 +456,40 @@ class PyBot(object):
         Conducts a keyword search.
         """
         logging.info("Searching for keywords...")
-        try:
-            pass
 
-        except tweepy.TweepError as e:
-            logging.error("Unable to retrieve search results!", e)
-        except httplib.IncompleteRead as e:
-            logging.error("IncompleteRead error, aborting keyword search.")
+        # Is the streamer even running?
+        if not self.stream.running:
+            # Are there any keywords we should be filtering on?
+            if len(self.config['search_keywords']) > 0:
+                # Yes, do a filter on the keywords.
+                logging.info("Starting the streaming filter.")
+                self.stream.filter(languages = self.config['languages'],
+                    track = self.config['search_keywords'],
+                    async = True)
+            else:
+                # Nope, just do a sample.
+                self.stream.sample(languages = self.config['languages'], async = True)
+                logging.info("Starting the streaming sample.")
+        else:
+            # Grab the static snapshot of the current buffer.
+            tweets = list(reversed(self.buffer))
+
+            # Clear out the buffer.
+            self.lock.acquire()
+            self.buffer = []
+            self.lock.release()
+
+            # Process the tweets.
+            logging.info("Received %s tweets from the streaming API, now processing." % len(tweets))
+            for tweet in tweets:
+                if tweet.author.screen_name in self.config['blacklist']: continue
+                self.on_search(tweet)
+
+                # Test for autofav keywords.
+                # Check the tokens in the tweet for keywords.
+                words = tweet.text.lower().split()
+                if any(w in words for w in self.config['autofav_keywords']):
+                    self.create_favorite(tweet)
 
         logging.info("Search complete.")
 
@@ -552,3 +566,32 @@ class PyBot(object):
         """
         self.config['storage'].write('%s_state.pkl' % self.screen_name, self.state)
         logging.info("Bot state saved.")
+
+    # # # # # # # # # # # # # # # # # # # # # # #
+    #    Streaming methods. Leave these alone.  #
+    # # # # # # # # # # # # # # # # # # # # # # #
+
+    def on_status(self, status):
+        """
+        Invoked whenever a new status arrives through the streaming listener,
+        whether from sample() or filter(). The status is appended to the buffer;
+        if the buffer length exceeds its limit, the oldest status is dropped.
+        """
+        # Acquire the lock.
+        self.lock.acquire()
+
+        # Would adding this tweet to the buffer overflow it?
+        while len(self.buffer) >= self.config['streaming_buffer_length']:
+            self.buffer.pop(0)
+
+        # Append the new status
+        self.buffer.append(status)
+
+        # Release the lock.
+        self.lock.release()
+
+    def on_error(self, status_code):
+        pass
+
+    def on_exception(self, exception):
+        pass
