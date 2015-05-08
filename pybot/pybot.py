@@ -12,7 +12,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import httplib
 import logging
+import re
 import signal
 import time
 
@@ -67,6 +69,9 @@ class PyBot(object):
         # If True, this bot automatically follows any account that follows it.
         self.config['autofollow'] = False
 
+        # If True, this bot discards any timeline tweets with mentions (to any user).
+        self.config['ignore_timeline_mentions'] = False
+
         # Logging level. See https://docs.python.org/2/library/logging.html#logging-levels
         # for more details.
         self.config['logging_level'] = logging.DEBUG
@@ -118,14 +123,12 @@ class PyBot(object):
             self.state['last_timeline_id'] = 1
             self.state['last_timeline_time'] = 0
             self.state['next_timeline_time'] = 0
-            self.state['recent_timeline'] = []
 
             # Mention configuration options. Set mention_interval to 0 to
             # disable checking the bot's mentions.
             self.state['last_mention_id'] = 1
             self.state['last_mention_time'] = 0
             self.state['next_mention_time'] = 0
-            self.state['recent_mentions'] = []
 
             # Keyword search configuration options. Set search_interval to 0 to
             # disable searching for keywords in the public timeline.
@@ -187,20 +190,16 @@ class PyBot(object):
     def on_tweet(self):
         raise NotImplementedError("Need to implement (or pass) 'on_tweet'.")
 
-    def on_mention(self):
+    def on_mention(self, tweet, prefix):
         raise NotImplementedError("Need to implement (or pass) 'on_mention'.")
 
-    def on_timeline(self):
+    def on_timeline(self, tweet, prefix):
         raise NotImplementedError("Need to implement (or pass) 'on_timeline'.")
 
     def on_follow(self, friend):
-        self.state['followers'].append(friend)
+        raise NotImplementedError("Need to implement (or pass) 'on_follow'.")
 
-        # Do we automatically follow back?
-        if self.config['autofollow']:
-            self.create_friendship(friend)
-
-    def on_search(self):
+    def on_search(self, tweet, prefix, keyword):
         raise NotImplementedError("Need to implement (or pass) 'on_search'.")
 
     def bot_init(self):
@@ -223,7 +222,9 @@ class PyBot(object):
             for action in self.actions:
                 if self.config['%s_interval' % action] != 0 and \
                         current_time > self.state['next_%s_time' % action]:
+
                     # Do something.
+                    getattr(self, '_handle_%s' % action)()
 
                     # Update state.
                     self.state['last_%s_time' % action] = current_time
@@ -378,6 +379,148 @@ class PyBot(object):
     # # # # # # # # # # # # # # # # # # # # # # #
     #     Helper methods. Leave these alone.    #
     # # # # # # # # # # # # # # # # # # # # # # #
+
+    def _handle_tweet(self):
+        """
+        Processes posting a tweet.
+        """
+        logging.info("Preparing for posting a new tweet...")
+        self.on_tweet(self)
+        logging.info("Tweet completed")
+
+    def _handle_timeline(self):
+        """
+        Processes the home timeline for the bot (excludes mentions).
+        """
+        logging.info("Reading current timeline...")
+        try:
+            # Retrieve the last 500 posts on the timeline.
+            timeline = self.api.home_timeline(
+                since_id = self.state['last_timeline_id'], count = 500)
+
+            # Delete tweets this bot posted, tweets that mention this bot, and blacklisted users.
+            current_timeline = []
+            for t in timeline:
+                if t.author.screen_name.lower() != self.screen_name.lower() and \
+                        t.author.screen_name.lower() not in self.blacklist and \
+                        not re.search('@%s' % self.screen_name, t.text, flags = re.IGNORECASE):
+                    current_timeline.append(t)
+
+            # Do we ignore ALL mentions (tweets that mention OTHER users, NOT the bot)?
+            if self.config['ignore_timeline_mentions']:
+                current_timeline = [t for t in current_timeline if '@' not in t.text]
+
+            # Process what's left over.
+            if len(current_timeline) > 0:
+                self.state['last_timeline_id'] = current_timeline[0].id
+                for tweet in list(reversed(current_timeline)):
+                    # Run the tweet through the timeline callback.
+                    prefix = self._mention_prefix(tweet)
+                    self.on_timeline(tweet, prefix)
+
+                    # Check the tokens in the tweet for keywords.
+                    words = tweet.text.lower().split()
+                    if any(w in words for w in self.config['autofav_keywords']):
+                        self.create_favorite(tweet)
+
+        except tweepy.TweepError as e:
+            logging.error("Unable to retrieve timeline!", e)
+        except httplib.IncompleteRead as e:
+            logging.error("IncompleteRead error, aborting timeline update.")
+
+        logging.info("Finished processing timeline.")
+
+    def _handle_mention(self):
+        """
+        Processes the list of mentions for the bot.
+        """
+        logging.info("Checking for new mentions...")
+        try:
+            # Snag the last 100 mentions.
+            mentions = self.api.mentions_timeline(
+                since_id = self.state['last_mention_id'], count = 100)
+
+            # Do we only look at direct mentions?
+            if self.config['reply_direct_mention_only']:
+                mentions = [t for t in mentions if re.split('[^@\w]', t.text)[0] == '@%s' % self.screen_name]
+
+            # Process remaining mentions.
+            if len(mentions) > 0:
+                self.state['last_mention_id'] = mentions[0].id
+                for mention in list(reversed(mentions)):
+
+                    # Send the tweet to the callback.
+                    prefix = self._mention_prefix(mention)
+                    self.on_mention(mention, prefix)
+
+                    # Do we autofav?
+                    if self.config['autofav_direct_mentions']:
+                        self.create_favorite(mention)
+
+        except tweepy.TweepError as e:
+            logging.error("Unable to retrieve mentions!", e)
+        except httplib.IncompleteRead as e:
+            logging.error("IncompleteRead error, aborting mentions.")
+
+        logging.info("Finished processing mentions.")
+
+    def _handle_search(self):
+        """
+        Conducts a keyword search.
+        """
+        logging.info("Searching for keywords...")
+        try:
+            pass
+
+        except tweepy.TweepError as e:
+            logging.error("Unable to retrieve search results!", e)
+        except httplib.IncompleteRead as e:
+            logging.error("IncompleteRead error, aborting keyword search.")
+
+        logging.info("Search complete.")
+
+    def _handle_followers(self):
+        """
+        Processes new followers and invokes the appropriate callback.
+        """
+        logging.info("Checking for new followers...")
+
+        # Grab the list of new followers.
+        try:
+            self.state['new_followers'] = [fid for fid in self.api.followers_ids(self.id) if fid not in self.state['followers'] and self.api.get_user(fid).screen_name not in self.blacklist]
+        except tweepy.TweepError as e:
+            logging.error("Unable to update followers!", e)
+
+        # Invoke the callback.
+        for f in self.state['new_followers']:
+            self.state['followers'].append(f)
+
+            # Do we automatically follow back?
+            if self.config['autofollow']:
+                self.create_friendship(f)
+
+            # Callback.
+            self.on_follow(f)
+
+        # Update the timestamps.
+        logging.info("Followers updated")
+        if len(self.state['new_followers']) > 0:
+            logging.info("--%s new followers processed" % len(self.state['new_followers']))
+            self.state['new_followers'] = []
+
+    def _mention_prefix(self, tweet):
+        """
+        Helper method to get the list of mentions in a tweet for responding.
+        """
+        respond = ['@%s' % tweet.author.screen_name]
+        respond += [s for s in re.split('[^@\w]', tweet.text) if len(s) > 2 and s[0] == '@' and s[1:].lower() != self.screen_name.lower() and s[1:].lower() not in self.blacklist]
+
+        if self.config['reply_followers_only']:
+            # Delete any users who aren't a follower.
+            respond = [s for s in respond if s[1:].lower() in self.state['followers'] or s == '@%s' % tweet.author.screen_name]
+
+        # Return the list as a string.
+        return ' '.join(respond)
 
     def _tweet_url(self, tweet):
         """
