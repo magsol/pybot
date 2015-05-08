@@ -128,14 +128,10 @@ class PyBotTemplate(PyBot):
         """
         pass
 
-    def on_search(self, tweet, prefix, keyword):
+    def on_search(self, tweet):
         """
         Handler for responding to public tweets that contain certain keywords,
         as specified in self.config['search_keywords'].
-
-        When calling `self.update_status`, make sure you set the `reply_to`
-        parameter to point to the tweet object, or Twitter will not recognize
-        this tweet as a reply to the original.
 
         Parameters
         ----------
@@ -143,13 +139,6 @@ class PyBotTemplate(PyBot):
             Contains the status update pertaining to the mention. The fields in
             this object mimic Twitter's Tweet object:
             https://dev.twitter.com/overview/api/tweets
-        prefix : string
-            String containing all the mentions from the original tweet, excluding
-            your bot's screen name, any users in the blacklist, and any users
-            you do not follow IF self.config['reply_followers_only'] is True.
-        keyword : string
-            Keyword that appeared in the original tweet, matching one of specified
-            keywords in the `self.config['search_keywords']` list.
         """
         pass
 
