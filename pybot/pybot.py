@@ -114,7 +114,7 @@ class PyBot(tweepy.StreamListener):
         self.screen_name = self.api.me().screen_name
 
         # Set up the streaming API. May or may not need this.
-        self.stream = tweepy.Stream(self.api, self)
+        self.stream = tweepy.Stream(auth, self)
         self.lock = mp.Lock()
         self.buffer = []
 
@@ -562,6 +562,8 @@ class PyBot(tweepy.StreamListener):
         """
         logging.info("SIGINT caught, beginning shutdown...")
         self.running = False
+        if self.stream.running:
+            self.stream.disconnect()
 
     def _save_state(self):
         """
