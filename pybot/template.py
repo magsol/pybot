@@ -156,7 +156,7 @@ class PyBotTemplate(PyBot):
         friend : string
             Twitter user ID of the new follower.
         """
-        super(PyBotTemplate, self).on_follow(friend)
+        pass
 
 if __name__ == "__main__":
     bot = PyBotTemplate()  # In this case, a basic Echo bot.

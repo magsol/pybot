@@ -243,6 +243,7 @@ class PyBot(tweepy.StreamListener):
                     # Update state.
                     self.state['last_%s_time' % action] = current_time
                     self.state['next_%s_time' % action] = self._increment(current_time, self.config['%s_interval' % action])
+                    intervals.append(self.state['next_%s_time' % action])
 
             # Check custom handlers.
             for callback in self.custom_callbacks:
@@ -266,6 +267,7 @@ class PyBot(tweepy.StreamListener):
                 # Find the next timestamp.
                 next_action = min(intervals)
                 if current_time < next_action:
+                    logging.info("Sleeping for %.4f seconds." % (next_action - current_time))
                     time.sleep(next_action - current_time)
 
         # If the loop breaks, someone hit CTRL+C.
@@ -372,7 +374,7 @@ class PyBot(tweepy.StreamListener):
         Processes posting a tweet.
         """
         logging.info("Preparing for posting a new tweet...")
-        self.on_tweet(self)
+        self.on_tweet()
         logging.info("Tweet completed")
 
     def _handle_timeline(self):

@@ -62,6 +62,6 @@ class PickleStorage(object):
             logging.info("Overwriting %s." % f)
         else:
             logging.info("Creating %s." % f)
-        fp = open(f)
+        fp = open(f, "w")
         pickle.dump(s, fp)
         fp.close()
