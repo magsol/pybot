@@ -243,6 +243,7 @@ class PyBot(tweepy.StreamListener):
                     # Update state.
                     self.state['last_%s_time' % action] = current_time
                     self.state['next_%s_time' % action] = self._increment(current_time, self.config['%s_interval' % action])
+                if self.config['%s_interval' % action] != 0:
                     intervals.append(self.state['next_%s_time' % action])
 
             # Check custom handlers.
@@ -254,7 +255,7 @@ class PyBot(tweepy.StreamListener):
                     # Update the interval for the next run.
                     callback['last_run'] = current_time
                     callback['next_run'] = self._increment(current_time, callback['interval'])
-                    intervals.append(callback['next_run'])
+                intervals.append(callback['next_run'])
 
             # Are there any more actions?
             if len(intervals) == 0:
