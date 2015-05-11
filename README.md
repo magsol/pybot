@@ -1,5 +1,5 @@
-PyBot, v0.1
-===========
+PyBot, v0.2.0
+=============
 
 This is a port of [my previous attempt at a Twitterbot](https://github.com/magsol/Twitterbot), the primary difference being this is in Python instead of PHP. Arguably an improvement all by itself :)
 
@@ -8,49 +8,70 @@ PyBot is designed to be a modular and lightweight framework in which users can c
 Installation
 ------------
 
-Download the source. Yay!
-
+Download the source. Make sure the dependencies are satisfied. Yay!
 
 Dependencies
 ------------
 
   - [Python v2.7+](http://www.python.org/) (untested with Python 3)
-  - [SQLAlchemy v0.9+](http://www.sqlalchemy.org/)
   - [tweepy v3.3+](https://github.com/tweepy/tweepy)
   - Any other dependencies are bot-dependent
 
 Documentation
 -------------
 
-**Creating new bots**: You can issue the command
+**v0.2.0 is a significant overhaul of the source from v0.1.0.** Please read the following documentation carefully, especially if you are familiar with PyBot's previous architecture.
 
-    python pybot.py create -n <botname>
+**Creating new bots**: You can use the provided script in the `sbin` folder to create new bots:
 
-This will walk you through the process of creating a new bot, and in particular creating OAuth credentials (which you'll need for any kind of meaningful interaction with Twitter). Simply follow the instructions that appear. PyBot will generate a code template with all the basic information filled in; however, your bot won't do anything until you create the implementation.
+    sbin/create_pybot.py
 
-All bots ultimately require the user to implement their `run()` methods. This is invoked when a bot is started. For those familiar with my previous PHP-based Twitterbot, these bots are *not* implicitly designed to be daemons (though they certainly can be). This decision was made so users could create very elaborate multithreaded and multiprocess bots without having to circumvent the main framework.
+This will give you a list of arguments you can provide. The only required argument is the bot's name; this can be anything you want, and it bears no intrinsic connection to the Twitter user you connect the bot to. The name you give this script is purely to distinguish between your PyBots.
 
-IMPORTANT: The name you give the bot on the command-line has *no intrinsic connection* to the Twitter username. As such, you are more than welcome to implement multiple bots that all use the same OAuth credentials (and therefore report to the same Twitter account). This is simply a mechanism by which PyBot distinguishes between bots.
+Optionally, you can provide your OAuth credentials if you have them already (`api_key`, `api_secret`, `access_key`, and `access_secret`). Otherwise, the script will take you through the process of registering an app on Twitter, generating the necessary credentials, and integrating them with your bot.
 
-**Installing existing bots**: Since there's no unifying architecture between bot implementations, you can simply drop a uniquely-named folder into the root `pybot` directory. As long as it adheres to the PyBot inheritance conventions, it should run just fine (e.g. see my [pybot-impls project](https://github.com/magsol/pybot-impls/)).
+**Implementing an action**: The core functionality of PyBot revolves around the concept of an *action*. Activities such as posting a tweet, reading a reply, "favorite-ing" a tweet, or searching for keywords all constitute different types of actions.
+
+There are two phases to an action: a *delay interval* and a *callback*. During the delay interval, or waiting time between handling time of actions, your bot essentially sleeps. Depending on the action, it may still be doing something behind the scenes (e.g. reading from Twitter's Streaming API), but for all practical purposes it is sleeping.
+
+Once the delay interval has elapsed, the callback phase kicks in. This is where the action is explicitly handled.
+
+As an example, let's say you want your bot to post the time every hour. Our `HourlyBot` will have a 1-hour tweet interval, set using this configuration option:
+
+    def bot_init(self):
+
+        self.config['tweet_interval'] = 60 * 60
+
+        # ...
+        # Other configuration options here
+        # ...
+
+(the intervals are in seconds, so to get 60 minutes we need 3,600 seconds, or 60 * 60)
+
+By itself, this means `HourlyBot` will activate a *tweet* callback every 60 minutes. With the interval in place, now we have to implement the actual callback. This is done with the `on_tweet()` method.
+
+    def on_tweet(self):
+        from datetime import datetime
+        self.update_status("It is %s." % datetime.strftime(datetime.now(), "%I:%M%p"))
+
+And that's it! The PyBot internals take care of logging, saving state, putting the bot to sleep between callbacks, and waking it up at the correct intervals. See the `examples/` folder for more examples.
 
 **Starting a bot**: Run the command
 
-    python pybot.py start -n <botname>
+    python your_bot.py
 
-This will start the specified bot. You have a couple of options in terms of how you want to do this.
+This will start the specified bot. The above script generates a bot that has a single action defined; you can specify more if you want. However, if you remove all actions, this will be detected and the bot will automatically terminate. Otherwise, it will simply run forever.
 
- - You can implement your bot to run once and then stop. In this case, you could tie the bot to a cronjob (run `crontab -e`) that invokes this command repeatedly over regular intervals.
- - You can create a `while True` loop that runs your bot indefinitely. In this case, the console you invoke the command from will be tied up until you either CTRL+C or otherwise kill the process. Along these lines, you could also append a `&` to the end of the initial command, backgrounding the process so you can still use your console.
- - You can get really clever and make your bot into a daemon, detaching it from the console entirely.
+**Stopping a bot**: A simple CTRL+C should do the trick! This will send a SIGTERM signal to your bot, which has a handler in place to catch the termination signal and gracefully shut down.
 
-**Stopping a bot**: Run the command
+Acknowledgements
+----------------
 
-    python pybot.py stop -n <botname>
+The original inspiration for this bot came from [Rob Hall's postmaster9001](https://twitter.com/postmaster9001) in the late 2000s, and gave birth to the (now-deprecated) PHP version linked above.
 
-This will send a SIGTERM signal to your bot, hopefully killing it. This is really only applicable if you daemonized your bot, or if something went wrong and your bot is hanging when it should have stopped.
+Architectural aspects of PyBot were inspired in part from [muffinista's chatterbot](https://github.com/muffinista/chatterbot/) and [thricedotted's twitterbot](https://github.com/thricedotted/twitterbot). In particular, the blacklist and DSL aspects come from muffinista, while the object-oriented design and functional callbacks are taken from thricedotted.
 
-IMPORTANT: In some cases, SIGTERM actually won't kill the bot (it requires SIGKILL). I'm still working on this problem.
+If you are familiar with thricedotted's Python twitterbot, you will find many similarities in PyBot. I chose not to make PyBot a direct fork of twitterbot, as it is not backwards-compatible at all. Still, it retains enough architectural similarity to warrant mention.
 
 License
 -------

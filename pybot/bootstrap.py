@@ -16,7 +16,6 @@ import ConfigParser
 import importlib
 import os
 import os.path
-import signal
 import tweepy
 import tweepy.error
 
@@ -37,16 +36,23 @@ def stop(botname):
     _bot_exists(botname)
     cfg = ConfigParser.SafeConfigParser()
     cfg.read('%s/settings.cfg' % botname)
-    try:
-        f = open(cfg.get('bot', 'pidfile'), "r")
-        pid = int(f.readline().strip())
-        f.close()
-        os.kill(pid, signal.SIGTERM)
-    except IOError:
-        print 'Unable to read PID file. Perhaps "%s" is not running?' % botname
-    except OSError, err:
-        err = str(err)
-        print err
+    pidfile = cfg.get('bot', 'pidfile')
+    if os.path.exists(pidfile):
+        # Delete the pidfile. This will message the process
+        pid = -1
+        try:
+            f = open(pidfile, "r")
+            pid = int(f.readline().strip())
+            f.close()
+            os.remove(pidfile)
+        except IOError:
+            print 'Unable to read PID file. Perhaps "%s" is not running?' % botname
+        except OSError, err:
+            err = str(err)
+            print err
+        print 'Sent process %s a halt signal.' % pid
+    else:
+        print 'PID file "%s" does not exist. Perhaps "%s" is not running?' % (pidfile, botname)
 
 def list():
     bots = 0
