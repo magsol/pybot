@@ -55,11 +55,26 @@ class TrigramBot(PyBot):
         # Posts a tweet every 45-ish minutes.
         self.config['normal_mean'] = 45
         self.config['normal_std'] = 5
-        self.config['tweet_interval'] = lambda: np.random.normal(
+        self.config['tweet_interval'] = lambda: 60 * np.random.normal(
             loc = self.config['normal_mean'], scale = self.config['normal_std'])
 
-        # Custom override--sampling the public timeline continuously.
+        # Custom override--sampling the public timeline continuously. This is
+        # admittedly a bit of a hack, as this callback will delete itself after
+        # it runs only once.
+        self.register_custom_callback(self.start_streaming, 1)
+
+    def start_streaming(self):
+        """
+        Custom helper callback to start the streaming process.
+
+        CRITICAL: This method deletes the custom callbacks!
+        """
+        # Start the streaming sample.
         self.stream.sample(languages = self.config['languages'], async = True)
+        logging.info("Starting the streaming sample.")
+
+        # Delete the callback.
+        self.custom_callbacks = []
 
     def on_tweet(self):
         """
@@ -100,7 +115,8 @@ class TrigramBot(PyBot):
         key = (k1, k2)
         nextToken = model[key][np.random.randint(0, len(model[key]))]
         while nextToken != self.config['trigram_end'] and len('%s %s' % (post, nextToken)) < 140:
-            post = '%s%s' % (post, nextToken)
+            post = '%s %s' % (post, nextToken)
+            post = post.strip()
             k1 = k2
             k2 = nextToken
             key = (k1, k2)

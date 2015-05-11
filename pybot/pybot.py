@@ -99,12 +99,12 @@ class PyBot(tweepy.StreamListener):
         # Now we start initializing the bot.
         #
 
-        # Set up a signal handler so a bot can gracefully exit.
-        signal.signal(signal.SIGINT, self._handler)
-
         # Required implementation by all subclasses. Produces an error if it
         # is not implemented.
         self.bot_init()
+
+        # Set up a signal handler so a bot can gracefully exit.
+        signal.signal(signal.SIGINT, self._handler)
 
         # Set up OAuth with Twitter and pull down some basic identities.
         auth = tweepy.OAuthHandler(self.config['api_key'], self.config['api_secret'])
@@ -130,31 +130,32 @@ class PyBot(tweepy.StreamListener):
         s = self.config['storage'].read('%s_state.pkl' % self.screen_name)
         if s is None:
             # No previous state to load? Initialize everything.
+            curr_t = time.time()
 
             # Timeline configuration options. Set timeline_interval to 0 to
             # disable checking the bot's timeline.
             self.state['last_timeline_id'] = 1
-            self.state['last_timeline_time'] = 0
-            self.state['next_timeline_time'] = 0
+            self.state['last_timeline_time'] = curr_t
+            self.state['next_timeline_time'] = self._increment(curr_t, self.config['timeline_interval'])
 
             # Mention configuration options. Set mention_interval to 0 to
             # disable checking the bot's mentions.
             self.state['last_mention_id'] = 1
-            self.state['last_mention_time'] = 0
-            self.state['next_mention_time'] = 0
+            self.state['last_mention_time'] = curr_t
+            self.state['next_mention_time'] = self._increment(curr_t, self.config['mention_interval'])
 
             # Keyword search configuration options. Set search_interval to 0 to
             # disable searching for keywords in the public timeline.
             self.state['last_search_id'] = 1
-            self.state['last_search_time'] = 0
-            self.state['next_search_time'] = 0
+            self.state['last_search_time'] = curr_t
+            self.state['next_search_time'] = self._increment(curr_t, self.config['search_interval'])
             self.state['search_hits'] = []
 
             # Active tweeting configuration. Set tweet_interval to 0 to
             # disable posting otherwise-unprovoked tweets.
             self.state['last_tweet_id'] = 1
-            self.state['last_tweet_time'] = 0
-            self.state['next_tweet_time'] = 0
+            self.state['last_tweet_time'] = curr_t
+            self.state['next_tweet_time'] = self._increment(curr_t, self.config['tweet_interval'])
 
             # List of user IDs you follow.
             self.state['friends'] = self.api.friends_ids(self.id)
@@ -164,8 +165,8 @@ class PyBot(tweepy.StreamListener):
 
             # List of new followers since the last check (internal) timestamp.
             self.state['new_followers'] = []
-            self.state['last_follow_time'] = time.time()
-            self.state['next_follow_time'] = 0
+            self.state['last_follow_time'] = curr_t
+            self.state['next_follow_time'] = self._increment(curr_t, self.config['follow_interval'])
         else:
             # Use loaded state.
             self.state = s
