@@ -17,7 +17,6 @@ Dependencies
   - [Python v2.7+](http://www.python.org/) (untested with Python 3)
   - [SQLAlchemy v0.9+](http://www.sqlalchemy.org/)
   - [tweepy v3.3+](https://github.com/tweepy/tweepy)
-  - [celery v3.1+](https://github.com/celery/celery)
   - Any other dependencies are bot-dependent
 
 Documentation
