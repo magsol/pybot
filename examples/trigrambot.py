@@ -127,8 +127,10 @@ class TrigramBot(PyBot):
 
         # As a sanity check, make sure the streaming API is still running.
         if not self.stream.running:
-            logging.error("Streaming API crashed for some reason! Quitting...")
-            self.running = False
+            logging.error("Streaming API crashed for some reason! Attempting to reboot...")
+
+            # Re-register the custom callback to start the streaming process again.
+            self.register_custom_callback(self.start_streaming, 1)
 
     def on_mention(self, tweet, prefix):
         pass
