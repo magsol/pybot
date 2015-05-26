@@ -113,6 +113,13 @@ class TrigramBot(PyBot):
         k1 = self.config['trigram_s1']
         k2 = self.config['trigram_s2']
         key = (k1, k2)
+
+        # Are there any tweets to process? This can happen if the bot was
+        # stopped and restarted after a sufficiently long wait; the on_tweet
+        # action will trigger immediately, but no tweets will be in the buffer.
+        if key not in model:
+            logging.warn("Model is devoid of tweets! If you didn't just restart your bot, make sure there isn't a problem.")
+            return
         nextToken = model[key][np.random.randint(0, len(model[key]))]
         while nextToken != self.config['trigram_end'] and len('%s %s' % (post, nextToken)) < 140:
             post = '%s %s' % (post, nextToken)
