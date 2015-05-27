@@ -118,6 +118,12 @@ class TrigramBot(PyBot):
         # stopped and restarted after a sufficiently long wait; the on_tweet
         # action will trigger immediately, but no tweets will be in the buffer.
         if key not in model:
+            # As a sanity check, make sure the streaming API is still running.
+            if not self.stream.running:
+                logging.error("Streaming API crashed for some reason! Attempting to reboot...")
+
+                # Re-register the custom callback to start the streaming process again.
+                self.register_custom_callback(self.start_streaming, 1)
             logging.warn("Model is devoid of tweets! If you didn't just restart your bot, make sure there isn't a problem.")
             return
         nextToken = model[key][np.random.randint(0, len(model[key]))]
@@ -131,13 +137,6 @@ class TrigramBot(PyBot):
 
         # Post the tweet!
         self.update_status(post)
-
-        # As a sanity check, make sure the streaming API is still running.
-        if not self.stream.running:
-            logging.error("Streaming API crashed for some reason! Attempting to reboot...")
-
-            # Re-register the custom callback to start the streaming process again.
-            self.register_custom_callback(self.start_streaming, 1)
 
     def on_mention(self, tweet, prefix):
         pass
