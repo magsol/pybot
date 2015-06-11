@@ -279,7 +279,7 @@ class PyBot(tweepy.StreamListener):
     #   Twitter DSL methods. Use these often.   #
     # # # # # # # # # # # # # # # # # # # # # # #
 
-    def update_status(self, status, reply_to = None, lat = None, lon = None, media = None):
+    def update_status(self, status, reply_to = None, lat = None, lon = None):
         """
         Basic DSL method for posting a status update to Twitter.
 
@@ -292,36 +292,29 @@ class PyBot(tweepy.StreamListener):
             Implements the threaded tweets on Twitter, marking this as a reply.
         lat, lon : float or None
             Latitude and longitude of the tweet location.
-        media : string or None
-            Filesystem path to an image that will be uploaded.
 
         Returns
         -------
         True on success, False on failure.
         """
-        kwargs = {}
-        args = [status]
+        status = status.format('utf8', 'ignore')
+        kwargs = {'status': status}
 
         try:
-            logging.info("Tweeting: %s" % status)
+            logging.info("Tweeting: '%s'" % status)
             if reply_to is not None:
                 logging.info("--Response to %s" % self._tweet_url(reply_to))
                 kwargs['in_reply_to_status_id'] = reply_to.id
 
-            # Is there media attached to this?
-            tweet = None
-            if media is not None:
-                args.insert(0, media)
-                tweet = self.api.update_with_media(*args, **kwargs)
-            else:
-                tweet = self.api.update_status(*args, **kwargs)
+            # Push out the tweet.
+            tweet = self.api.update_status(**kwargs)
 
             # Log the URL.
             logging.info("Tweet posted at %s" % self._tweet_url(tweet))
             return True
 
         except tweepy.TweepError as e:
-            logging.error("Unable to post tweet!", e)
+            logging.error("Unable to post tweet: %s" % e[0][0]['message'])
             return False
 
     def create_favorite(self, tweet):
@@ -342,7 +335,7 @@ class PyBot(tweepy.StreamListener):
             self.api.create_favorite(tweet.id)
             return True
         except tweepy.TweepError as e:
-            logging.error("Unable to favorite tweet!", e)
+            logging.error("Unable to favorite tweet: %s" % e[0][0]['message'])
             return False
 
     def create_friendship(self, friend):
@@ -364,7 +357,7 @@ class PyBot(tweepy.StreamListener):
             self.state['friends'].append(friend)
             return True
         except tweepy.TweepError as e:
-            logging.error("Unable to follow user '%s': %s, %s" % (friend, e.message[0]['code'], e.message[0]['message']))
+            logging.error("Unable to follow user '%s': %s" % (friend, e[0][0]['message']))
             return False
 
     # # # # # # # # # # # # # # # # # # # # # # #
@@ -415,7 +408,7 @@ class PyBot(tweepy.StreamListener):
                         self.create_favorite(tweet)
 
         except tweepy.TweepError as e:
-            logging.error("Unable to retrieve timeline!", e)
+            logging.error("Unable to retrieve timeline: %s" % e[0][0]['message'])
         except httplib.IncompleteRead as e:
             logging.error("IncompleteRead error, aborting timeline update.")
 
@@ -449,7 +442,7 @@ class PyBot(tweepy.StreamListener):
                         self.create_favorite(mention)
 
         except tweepy.TweepError as e:
-            logging.error("Unable to retrieve mentions!", e)
+            logging.error("Unable to retrieve mentions: %s" % e[0][0]['message'])
         except httplib.IncompleteRead as e:
             logging.error("IncompleteRead error, aborting mentions.")
 
@@ -507,7 +500,7 @@ class PyBot(tweepy.StreamListener):
         try:
             self.state['new_followers'] = [fid for fid in self.api.followers_ids(self.id) if fid not in self.state['followers'] and self.api.get_user(fid).screen_name not in self.blacklist]
         except tweepy.TweepError as e:
-            logging.error("Unable to update followers!", e)
+            logging.error("Unable to update followers: %s (%s)" % (e[0]['message'], e[0]['code']))
 
         # Invoke the callback.
         for f in self.state['new_followers']:
