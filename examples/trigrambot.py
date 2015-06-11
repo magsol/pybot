@@ -65,15 +65,14 @@ class TrigramBot(PyBot):
 
     def start_streaming(self):
         """
-        Custom helper callback to start the streaming process.
-
-        CRITICAL: This method deletes the custom callbacks!
+        Custom helper to start the streaming process.
         """
         # Start the streaming sample.
         self.stream.sample(languages = self.config['languages'], async = True)
         logging.info("Starting the streaming sample.")
 
-        # Delete the callback.
+        # Delete the custom callbacks, in case this was used to re-start
+        # the streaming API.
         self.custom_callbacks = []
 
     def on_tweet(self):
@@ -85,6 +84,13 @@ class TrigramBot(PyBot):
         Set `self.config['tweet_interval']` to something other than 0 to set
         the interval in which this method is called (or keep at 0 to disable).
         """
+        # Custom override--sampling the public timeline continuously. This is
+        # admittedly a bit of a hack, but until I determine a more elegant way
+        # of integrating streaming, this is how it must be.
+        if not self.stream.running:
+            self.register_custom_callback(self.start_streaming, 0)
+            return  # Need to wait for the tweet buffer to accumulate.
+
         # Check out the list of tweets from the buffer.
         tweets = list(reversed(self.buffer))
 
@@ -118,12 +124,6 @@ class TrigramBot(PyBot):
         # stopped and restarted after a sufficiently long wait; the on_tweet
         # action will trigger immediately, but no tweets will be in the buffer.
         if key not in model:
-            # As a sanity check, make sure the streaming API is still running.
-            if not self.stream.running:
-                logging.error("Streaming API crashed for some reason! Attempting to reboot...")
-
-                # Re-register the custom callback to start the streaming process again.
-                self.register_custom_callback(self.start_streaming, 1)
             logging.warn("Model is devoid of tweets! If you didn't just restart your bot, make sure there isn't a problem.")
             return
         nextToken = model[key][np.random.randint(0, len(model[key]))]
