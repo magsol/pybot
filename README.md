@@ -72,19 +72,3 @@ The original inspiration for this bot came from [Rob Hall's postmaster9001](http
 Architectural aspects of PyBot were inspired in part from [muffinista's chatterbot](https://github.com/muffinista/chatterbot/) and [thricedotted's twitterbot](https://github.com/thricedotted/twitterbot). In particular, the blacklist and DSL aspects come from muffinista, while the object-oriented design and functional callbacks are taken from thricedotted.
 
 If you are familiar with thricedotted's Python twitterbot, you will find many similarities in PyBot. I chose not to make PyBot a direct fork of twitterbot, as it is not backwards-compatible at all. Still, it retains enough architectural similarity to warrant mention.
-
-License
--------
-    Copyright 2015 Shannon Quinn
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
