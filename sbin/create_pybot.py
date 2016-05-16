@@ -31,14 +31,14 @@ def _consumer_tokens():
     Handles prompting the user with directions for obtaining and inputting
     the OAuth consumer tokens.
     """
-    print """First, you'll need to create a Twitter app here:
+    print("""First, you'll need to create a Twitter app here:
 
 https://dev.twitter.com/apps/new
 
 This will provide you with "consumer key" and "consumer secret" tokens. When
 you have these tokens, make sure you're logged into Twitter with the account
 you want to use as your bot, and enter your tokens below.
-"""
+""")
     consumer_key = None
     consumer_secret = None
     check = "n"
@@ -55,13 +55,13 @@ def _access_tokens(oauth):
     """
     Handles prompting the user for creating and inputting the OAuth access tokens.
     """
-    print """\nWe'll need to create access tokens specific to your bot. To
+    print("""\nWe'll need to create access tokens specific to your bot. To
 do that, please visit the following URL:
 
 %s
 
 Once you have authorized the app with your bot account, you will receive a PIN.
-""" % oauth.get_authorization_url()
+""" % oauth.get_authorization_url())
     check = "n"
     while check.lower() != "y":
         pin = raw_input("Enter your PIN here: ")
@@ -70,13 +70,13 @@ Once you have authorized the app with your bot account, you will receive a PIN.
     try:
         token = oauth.get_access_token(verifier = pin)
     except tweepy.error.TweepError as e:
-        print 'Unable to authenticate! Check your OAuth credentials and run this script again.'
+        print('Unable to authenticate! Check your OAuth credentials and run this script again.')
         quit(e.reason)
 
     # Everything worked!
-    print """Authentication successful! Wait just a minute while the rest of your
+    print("""Authentication successful! Wait just a minute while the rest of your
 bot's internals are set up...
-"""
+""")
     return token
 
 if __name__ == "__main__":
@@ -96,14 +96,14 @@ if __name__ == "__main__":
 
     args = vars(parser.parse_args())
 
-    print """
+    print("""
 *********************
 * Welcome to PyBot! *
 *********************
 
 This script will help you set things up.
 
-"""
+""")
     botname = args['name']
     consumer_key = args['api_key']
     consumer_secret = args['api_secret']
@@ -149,7 +149,7 @@ This script will help you set things up.
     f.write(template)
     f.close()
 
-    print """Your bot \"%s\" is ready to rock! Start it up with the following command:
+    print("""Your bot \"%s\" is ready to rock! Start it up with the following command:
 
         python %s.py
-    """ % (botname, botname.lower())
+    """ % (botname, botname.lower()))
