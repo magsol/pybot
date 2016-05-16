@@ -12,16 +12,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import httplib
+import http.client
 import logging
 import multiprocessing as mp
 import re
 import signal
+import sys
 import time
 
 import tweepy
 
-import storage
+from .storage import PickleStorage
 
 class PyBot(tweepy.StreamListener):
 
@@ -85,7 +86,7 @@ class PyBot(tweepy.StreamListener):
         self.config['logging_level'] = logging.DEBUG
 
         # Adapter for saving/loading this PyBot's state.
-        self.config['storage'] = storage.PickleStorage()
+        self.config['storage'] = PickleStorage()
 
         # Denotes users the bot will never mention or respond to.
         self.config['blacklist'] = []
@@ -409,7 +410,7 @@ class PyBot(tweepy.StreamListener):
 
         except tweepy.TweepError as e:
             logging.error("Unable to retrieve timeline: %s" % e[0][0]['message'])
-        except httplib.IncompleteRead as e:
+        except http.client.IncompleteRead as e:
             logging.error("IncompleteRead error, aborting timeline update.")
 
         logging.info("Finished processing timeline.")
@@ -443,7 +444,7 @@ class PyBot(tweepy.StreamListener):
 
         except tweepy.TweepError as e:
             logging.error("Unable to retrieve mentions: %s" % e[0][0]['message'])
-        except httplib.IncompleteRead as e:
+        except http.client.IncompleteRead as e:
             logging.error("IncompleteRead error, aborting mentions.")
 
         logging.info("Finished processing mentions.")
@@ -554,10 +555,12 @@ class PyBot(tweepy.StreamListener):
         """
         Signal handler. Gracefully exits.
         """
-        logging.info("SIGINT caught, beginning shutdown...")
+        logging.info("SIGINT caught, shutting down.")
         self.running = False
         if self.stream.running:
             self.stream.disconnect()
+        self._save_state()
+        sys.exit()
 
     def _save_state(self):
         """
