@@ -95,7 +95,7 @@ class artbot(PyBot):
         target = datetime.datetime(year = now.year, month = now.month, day = now.day,
             hour = self.config['update_hour'], minute = self.config['update_minute'])
         days_ahead = self.config['update_day'] - now.weekday()
-        if days_ahead <= 0:
+        if (days_ahead < 0) or (days_ahead == 0 and (target - now).days < 0):
             days_ahead += 7
         td = target + datetime.timedelta(days = days_ahead)
         interval = int((td - datetime.datetime.now()).total_seconds())
