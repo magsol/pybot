@@ -12,13 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import cPickle as pickle
+import pickle
 import logging
 import os
 
 class PickleStorage(object):
     """
-    Base storage class. Uses Python's cPickle library.
+    Base storage class. Uses Python's pickle library.
 
     Create a new storage class and override "read(f)" and "write(f)"
     to use a different adapter, e.g. text files, databases, etc.
