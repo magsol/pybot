@@ -1,4 +1,4 @@
-PyBot, v0.2.0
+PyBot, v0.3.0
 =============
 
 This is a port of [my previous attempt at a Twitterbot](https://github.com/magsol/Twitterbot), the primary difference being this is in Python instead of PHP. Arguably an improvement all by itself :)
@@ -13,14 +13,14 @@ Download the source. Make sure the dependencies are satisfied. Yay!
 Dependencies
 ------------
 
-  - [Python v2.7+](http://www.python.org/) (untested with Python 3)
-  - [tweepy v3.3+](https://github.com/tweepy/tweepy)
+  - [Python 3.5+](http://www.python.org/)
+  - [tweepy 3.3+](https://github.com/tweepy/tweepy)
   - Any other dependencies are bot-dependent
 
 Documentation
 -------------
 
-**v0.2.0 is a significant overhaul of the source from v0.1.0.** Please read the following documentation carefully, especially if you are familiar with PyBot's previous architecture.
+**v0.3.0 is a significant overhaul of the source from v0.1.0.** Please read the following documentation carefully, especially if you are familiar with PyBot's previous architecture.
 
 **Creating new bots**: You can use the provided script in the `sbin` folder to create new bots:
 

@@ -12,9 +12,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import pickle
 import logging
 import os
+import pickle
 
 class PickleStorage(object):
     """
@@ -42,7 +42,7 @@ class PickleStorage(object):
             return None
 
         logging.info("Retrieving state from %s." % f)
-        fp = open(f)
+        fp = open(f, "rb")
         state = pickle.load(fp)
         fp.close()
         return state
@@ -62,6 +62,6 @@ class PickleStorage(object):
             logging.info("Overwriting %s." % f)
         else:
             logging.info("Creating %s." % f)
-        fp = open(f, "w")
+        fp = open(f, "wb")
         pickle.dump(s, fp)
         fp.close()

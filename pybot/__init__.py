@@ -1,5 +1,5 @@
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 __author__ = 'magsol'
 
-from pybot import PyBot
-from storage import PickleStorage
+from pybot.storage import PickleStorage
+from pybot.pybot import PyBot

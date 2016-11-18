@@ -62,6 +62,7 @@ do that, please visit the following URL:
 
 Once you have authorized the app with your bot account, you will receive a PIN.
 """.format(oauth.get_authorization_url()))
+
     check = "n"
     while check.lower() != "y":
         pin = raw_input("Enter your PIN here: ")
