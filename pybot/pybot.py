@@ -121,13 +121,13 @@ class PyBot(tweepy.StreamListener):
         # Set up logging.
         logging.basicConfig(format = '%(asctime)s | %(levelname)s: %(message)s',
             datefmt = '%m/%d/%Y %I:%M:%S %p',
-            filename = '%s.log' % self.screen_name,
+            filename = '{}.log'.format(self.config['bot_name']),
             level = self.config['logging_level'])
 
         # Try to load any previous state.
         logging.info("---STARTUP---")
         logging.info("Setting bot state...")
-        s = self.config['storage'].read('%s_state.pkl' % self.screen_name)
+        s = self.config['storage'].read('{}_state.pkl'.format(self.config['bot_name']))
         if s is None:
             # No previous state to load? Initialize everything.
             curr_t = time.time()
