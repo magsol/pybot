@@ -46,6 +46,7 @@ class PyBotTemplate(PyBot):
 
         # Posts a tweet every 30 minutes.
         self.config['tweet_interval'] = 30 * 60
+        self.config['bot_name'] = 'PyBotTemplate'
 
         #############################
         #                           #
