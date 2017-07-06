@@ -43,12 +43,12 @@ you want to use as your bot, and enter your tokens below.
     consumer_secret = None
     check = "n"
     while check.lower() != "y":
-        consumer_key = raw_input("Consumer key: ")
-        check = raw_input("Was that correct? [y/n]: ")
+        consumer_key = input("Consumer key: ")
+        check = input("Was that correct? [y/n]: ")
     check = "n"
     while check.lower() != "y":
-        consumer_secret = raw_input("Consumer secret: ")
-        check = raw_input("Was that correct? [y/n]: ")
+        consumer_secret = input("Consumer secret: ")
+        check = input("Was that correct? [y/n]: ")
     return [consumer_key, consumer_secret]
 
 def _access_tokens(oauth):
@@ -65,8 +65,8 @@ Once you have authorized the app with your bot account, you will receive a PIN.
 
     check = "n"
     while check.lower() != "y":
-        pin = raw_input("Enter your PIN here: ")
-        check = raw_input("Was that correct? [y/n]: ")
+        pin = input("Enter your PIN here: ")
+        check = input("Was that correct? [y/n]: ")
     token = None
     try:
         token = oauth.get_access_token(verifier = pin)

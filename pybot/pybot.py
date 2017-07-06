@@ -566,7 +566,7 @@ class PyBot(tweepy.StreamListener):
         """
         Serializes the current bot's state in case we halt.
         """
-        self.config['storage'].write('%s_state.pkl' % self.config['bot_name'], self.state)
+        self.config['storage'].write('{}_state.pkl'.format(self.config['bot_name']), self.state)
         logging.info("Bot state saved.")
 
     # # # # # # # # # # # # # # # # # # # # # # #
