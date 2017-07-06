@@ -49,6 +49,8 @@ class artbot(PyBot):
         #                           #
         #############################
 
+        self.config['bot_name'] = 'artbot'
+
         self.config['strava_access_token'] = 'your_strava_token'
         self.config['update_day'] = 0
         self.config['update_hour'] = 13
