@@ -463,10 +463,10 @@ class PyBot(tweepy.StreamListener):
                 logging.info("Starting the streaming filter.")
                 self.stream.filter(languages = self.config['languages'],
                     track = self.config['search_keywords'],
-                    async = True)
+                    is_async = True)
             else:
                 # Nope, just do a sample.
-                self.stream.sample(languages = self.config['languages'], async = True)
+                self.stream.sample(languages = self.config['languages'], is_async = True)
                 logging.info("Starting the streaming sample.")
         else:
             # Grab the static snapshot of the current buffer.
